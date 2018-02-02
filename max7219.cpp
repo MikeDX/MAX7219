@@ -11,9 +11,16 @@
 #include <Arduino.h>
 #include "max7219.h"
 #include "vincent.h"
+
+max7219Class::max7219Class(uint8_t data_pin, uint8_t clock_pin, uint8_t load_pin, int maxinuse) {
+  begin(data_pin, clock_pin, load_pin, maxinuse);
+}
+
+
 void max7219Class::scroll(String s) {
   scroll(s, 100);
 }
+
 void max7219Class::scroll(String s, int speed) {
   for (int a = 0; a < maxInUse; a++) {
     s = " " + s;
@@ -21,19 +28,21 @@ void max7219Class::scroll(String s, int speed) {
   s += " ";
 
   for (int x =  0; x <= (s.length() - 1) * 8; x ++) {
-    max7219.print(s, x);
+    this->print(s, x);
     delay(speed);
   }
 
 }
+
 void max7219Class::begin(uint8_t d, uint8_t c, uint8_t l, uint8_t m) {
-  dataIn = d;
-  clock = c;
-  load = l;
+  // Serial.print("max7219.begin\n");
+  _dataIn = d;
+  _clock = c;
+  _load = l;
   maxInUse = m;
-  pinMode(dataIn, OUTPUT);
-  pinMode(clock,  OUTPUT);
-  pinMode(load,   OUTPUT);
+  pinMode(_dataIn, OUTPUT);
+  pinMode(_clock,  OUTPUT);
+  pinMode(_load,   OUTPUT);
   maxAll(max7219_reg_scanLimit, 0x07);
   maxAll(max7219_reg_decodeMode, 0x00);  // using an led matrix (not digits)
   maxAll(max7219_reg_shutdown, 0x01);    // not in shutdown mode
@@ -41,26 +50,31 @@ void max7219Class::begin(uint8_t d, uint8_t c, uint8_t l, uint8_t m) {
   maxAll(max7219_reg_intensity, 0x01);
 
   // delay(2000);
-  for (e = 1; e <= 8; e++) { // empty registers, turn all LEDs off
+  for (int e = 1; e <= 8; e++) { // empty registers, turn all LEDs off
     maxAll(e, 0);
   }
   maxAll(max7219_reg_intensity, 0x01);    // the first 0x0f is the value you can set
 
   drawChar(1);
+
+  // Serial.print("max7219.begin ended\n");
 }
 
-void max7219Class::putByte(byte data) {
-  byte i = 8;
-  byte mask;
+void max7219Class::_putByte(uint8_t data) {
+  // Serial.print("max7219._putByte " +String(data) + "\n");
+
+  uint8_t i = 8;
+  uint8_t mask;
+
   while (i > 0) {
     mask = 0x01 << (i - 1);      // get bitmask
-    digitalWrite( clock, LOW);   // tick
+    digitalWrite(_clock, LOW);   // tick
     if (data & mask) {           // choose bit
-      digitalWrite(dataIn, HIGH);// send 1
+      digitalWrite(_dataIn, HIGH);// send 1
     } else {
-      digitalWrite(dataIn, LOW); // send 0
+      digitalWrite(_dataIn, LOW); // send 0
     }
-    digitalWrite(clock, HIGH);   // tock
+    digitalWrite(_clock, HIGH);   // tock
     --i;                         // move to lesser bit
   }
 }
@@ -69,65 +83,82 @@ void max7219Class::putByte(byte data) {
 void max7219Class::maxSingle( byte reg, byte col) {
   //maxSingle is the "easy"  function to use for a     //single max7219
 
-  digitalWrite(load, LOW);       // begin
-  putByte(reg);                  // specify register
-  putByte(col);//((data & 0x01) * 256) + data >> 1); // put data
-  digitalWrite(load, LOW);       // and load da shit
-  digitalWrite(load, HIGH);
+  digitalWrite(_load, LOW);       // begin
+  _putByte(reg);                  // specify register
+  _putByte(col);//((data & 0x01) * 256) + data >> 1); // put data
+  digitalWrite(_load, LOW);       // and load da shit
+  digitalWrite(_load, HIGH);
 }
 
 void max7219Class::maxAll (byte reg, byte col) {    // initialize  all  MAX7219's in the system
+  // Serial.print("max7219.maxAll " + String(reg) + " " + String(col) + "\n");
+
   int c = 0;
-  digitalWrite(load, LOW);  // begin
+  digitalWrite(_load, LOW);  // begin
   for ( c = 1; c <= maxInUse; c++) {
-    putByte(reg);  // specify register
-    putByte(col);//((data & 0x01) * 256) + data >> 1); // put data
+    _putByte(reg);  // specify register
+    _putByte(col);//((data & 0x01) * 256) + data >> 1); // put data
   }
-  digitalWrite(load, LOW);
-  digitalWrite(load, HIGH);
+  digitalWrite(_load, LOW);
+  digitalWrite(_load, HIGH);
 }
 
 void max7219Class::maxOne(byte maxNr, byte reg, byte col) {
-  //maxOne is for adressing different MAX7219's,
-  //whilele having a couple of them cascaded
+  //maxOne is for adressing different MAX7219s,
+  //while having a couple of them cascaded
 
   int c = 0;
-  digitalWrite(load, LOW);  // begin
+  digitalWrite(_load, LOW);  // begin
 
   for ( c = maxInUse; c > maxNr; c--) {
-    putByte(0);    // means no operation
-    putByte(0);    // means no operation
+    _putByte(0);    // means no operation
+    _putByte(0);    // means no operation
   }
 
-  putByte(reg);  // specify register
-  putByte(col);//((data & 0x01) * 256) + data >> 1); // put data
+  _putByte(reg);  // specify register
+  _putByte(col); //((data & 0x01) * 256) + data >> 1); // put data
 
   for ( c = maxNr - 1; c >= 1; c--) {
-    putByte(0);    // means no operation
-    putByte(0);    // means no operation
+    _putByte(0);    // means no operation
+    _putByte(0);    // means no operation
   }
 
-  digitalWrite(load, LOW); // and load da shit
-  digitalWrite(load, HIGH);
+  digitalWrite(_load, LOW); // and load da shit
+  digitalWrite(_load, HIGH);
 }
 
 
 void max7219Class::drawChar(byte c) {
+  // Serial.print("max7219.drawChar\n");
+
   for (int b = 0; b < 8; b++) {
     maxAll (b + 1, _rotate(c, b));
   }
 }
 void max7219Class::drawChar(byte c, byte num) {
   for (int b = 0; b < 8; b++) {
-    max7219.maxOne(num, b + 1, _rotate(c, b));
+    maxOne(num, b + 1, _rotate(c, b));
   }
 }
 
 byte max7219Class::_rotate(byte c, byte j) {
+  // Serial.print("max7219._rotate " + String(c) + " " + String(j) + "\n");
   char currentcharbit = 0;
   byte outputbyte = 0;//font_data[ic][j];
   byte b;
   int ic = c + font * 256;
+
+
+  // Serial.print("max7219.rot " + String(rot) + "\n");
+  // Serial.print("font " + String(font) + "\n");
+  // Serial.print("ic " + String(ic) + "\n");
+
+  // Serial.print("font char" + String(font_data[ic][j]) + "\n");
+
+  ic = 0;
+  j=0;
+
+
   switch (rot) {
 
     case 0:
@@ -166,6 +197,8 @@ byte max7219Class::_rotate(byte c, byte j) {
       break;
 
   }
+  // Serial.print("result: " + String(outputbyte) + "\n");
+
   return outputbyte;
 }
 
@@ -234,5 +267,5 @@ void max7219Class::print(String st, int x) {
 }
 
 
-max7219Class max7219;
+//max7219Class max7219;
 

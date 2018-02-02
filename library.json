@@ -1,0 +1,23 @@
+{
+    "name": "MAX7219",
+    "keywords": "MAX7219, LED, 8x8",
+    "description": "An Arduino library to interface the MAX7219 series chip to control any number of 8x8 led matrices",
+    "repository":
+     {
+        "type": "git",
+        "url": "https://github.com/MikeDX/MAX7219.git"
+    },
+    "version": "0.1",
+    "authors": {
+        "name": "Mike DX",
+        "url": "https://github.com/MikeDX"
+    },
+    "exclude": "tests",
+    "include": "max7219.h",
+    "examples": "examples/*/*.ino",
+    "frameworks": "arduino",
+    "platforms": [
+        "atmelavr",
+        "espressif"
+    ]
+}
